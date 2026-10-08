@@ -1,0 +1,17 @@
+{
+  "experiment_name": "qwen3-8b_ddp_ws4_ga2_bs2_seq2048_rep0",
+  "model": "qwen3-8b",
+  "strategy": "ddp",
+  "world_size": 4,
+  "per_device_batch_size": 2,
+  "seq_length": 2048,
+  "gradient_accumulation_steps": 2,
+  "precision": "bf16",
+  "grad_checkpoint": true,
+  "trainable_parameters": 8190735360,
+  "peak_memory_reserved_gb": 62.21484375,
+  "peak_memory_semantics": "full_replica",
+  "num_measured_steps": 0,
+  "status": "oom",
+  "timestamp": "2026-07-22T11:29:51"
+}

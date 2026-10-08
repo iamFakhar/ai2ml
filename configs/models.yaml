@@ -1,0 +1,60 @@
+models:
+  qwen3-0.6b:
+    hf_name: "Qwen/Qwen3-0.6B"
+    param_count: 596_049_920
+    hidden_size: 1024
+    num_layers: 28
+    num_attention_heads: 16
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"
+
+  qwen3-1.7b:
+    hf_name: "Qwen/Qwen3-1.7B"
+    param_count: 1_720_574_976
+    hidden_size: 2048
+    num_layers: 28
+    num_attention_heads: 16
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"
+
+  qwen3-4b:
+    hf_name: "Qwen/Qwen3-4B"
+    param_count: 4_022_468_096
+    hidden_size: 2560
+    num_layers: 36
+    num_attention_heads: 32
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"
+
+  qwen3-8b:
+    hf_name: "Qwen/Qwen3-8B"
+    param_count: 8_190_735_360
+    hidden_size: 4096
+    num_layers: 36
+    num_attention_heads: 32
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"
+
+  qwen3-14b:
+    hf_name: "Qwen/Qwen3-14B"
+    param_count: 14_768_307_200     # approx; runner overrides with measured count
+    hidden_size: 5120
+    num_layers: 40
+    num_attention_heads: 40
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"
+
+  qwen3-32b:
+    hf_name: "Qwen/Qwen3-32B"
+    param_count: 32_762_762_240     # approx; runner overrides with measured count
+    hidden_size: 5120
+    num_layers: 64
+    num_attention_heads: 64
+    num_kv_heads: 8
+    vocab_size: 151936
+    decoder_layer_cls: "Qwen3DecoderLayer"

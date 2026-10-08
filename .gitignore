@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.bak
+*.log
+.ipynb_checkpoints/
+.DS_Store
+# raw profiler traces / TensorBoard are large; publish via Zenodo or HF instead
+outputs/experiments/*/traces*/
+outputs/comm_attrib/
+outputs/tb_root/
+outputs/run_logs/
+outputs/launch_logs/
+# build artefacts
+*.aux
+*.out
+*.toc

@@ -1,0 +1,17 @@
+{
+  "experiment_name": "qwen3-32b_fsdp_zero2_ws2_ga1_bs2_seq2048_rep0",
+  "model": "qwen3-32b",
+  "strategy": "fsdp_zero2",
+  "world_size": 2,
+  "per_device_batch_size": 2,
+  "seq_length": 2048,
+  "gradient_accumulation_steps": 1,
+  "precision": "bf16",
+  "grad_checkpoint": true,
+  "trainable_parameters": 32762123264,
+  "peak_memory_reserved_gb": 80,
+  "peak_memory_semantics": "sharded",
+  "num_measured_steps": 0,
+  "status": "oom",
+  "timestamp": "2026-07-17T00:28:48"
+}

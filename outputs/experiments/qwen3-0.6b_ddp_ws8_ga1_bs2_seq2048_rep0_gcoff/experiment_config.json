@@ -1,0 +1,93 @@
+{
+  "experiment": {
+    "name": "qwen3-0.6b_ddp_ws8_ga1_bs2_seq2048_rep0_gcoff",
+    "output_root": "./outputs",
+    "seed": 42
+  },
+  "workload": {
+    "per_device_batch_size": 2,
+    "seq_len": 2048,
+    "gradient_checkpointing": false,
+    "attn_implementation": "sdpa"
+  },
+  "precision": {
+    "mode": "bf16"
+  },
+  "optimizer": {
+    "name": "adamw",
+    "lr": 1e-05,
+    "betas": [
+      0.9,
+      0.95
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "fused": true
+  },
+  "protocol": {
+    "num_steps": 60,
+    "warmup_steps_discard": 10,
+    "measured_steps": 50,
+    "residual_quality_gate_pct": 5.0
+  },
+  "distributed": {
+    "backend": "nccl",
+    "ddp": {
+      "bucket_cap_mb": 25,
+      "gradient_as_bucket_view": true,
+      "find_unused_parameters": false,
+      "broadcast_buffers": false,
+      "static_graph": false
+    },
+    "fsdp": {
+      "forward_prefetch": false,
+      "backward_prefetch": "BACKWARD_PRE",
+      "limit_all_gathers": true,
+      "use_orig_params": true
+    }
+  },
+  "instrumentation": {
+    "log_every": 1,
+    "enable_profiler_trace": true,
+    "enable_tensorboard": true,
+    "profiler": {
+      "skip_first": 3,
+      "wait": 1,
+      "warmup": 1,
+      "active": 5,
+      "repeat": 1,
+      "record_shapes": true,
+      "profile_memory": true,
+      "with_stack": false,
+      "with_flops": true
+    }
+  },
+  "hardware": {
+    "gpu_mem_gb": 80,
+    "a100_peak_bf16_tflops": 312.0,
+    "measured_nvswitch_bw_gbps": 233.0,
+    "nccl_bw_curve_path": "./outputs/nccl_tests/bw_curves.json"
+  },
+  "env": {
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "NCCL_DEBUG": "INFO",
+    "NCCL_DEBUG_SUBSYS": "COLL,INIT",
+    "TORCH_NCCL_ENABLE_TIMING": "1"
+  },
+  "model_key": "qwen3-0.6b",
+  "model_spec": {
+    "hf_name": "Qwen/Qwen3-0.6B",
+    "param_count": 596049920,
+    "hidden_size": 1024,
+    "num_layers": 28,
+    "num_attention_heads": 16,
+    "num_kv_heads": 8,
+    "vocab_size": 151936,
+    "decoder_layer_cls": "Qwen3DecoderLayer"
+  },
+  "strategy": "ddp",
+  "world_size_requested": 8,
+  "grad_accum_steps": 1,
+  "rep": 0
+}

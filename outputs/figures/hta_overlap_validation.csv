@@ -1,0 +1,4 @@
+experiment_name,strategy,custom_overlap_pct_mean,hta_overlap_pct_mean,hta_overlap_pct_min,hta_overlap_pct_max,delta_pp,csv_recorded_rank0_pct,ranks_used,world_size
+qwen3-4b_ddp_ws8_ga1_bs2_seq2048_rep0,DDP,92.54,91.45,90.75,92.51,1.09,92.58,3,8
+qwen3-4b_fsdp_zero2_ws8_ga1_bs2_seq2048_rep0,ZeRO-2,90.8,89.84,88.21,91.67,0.96,90.94,3,8
+qwen3-4b_fsdp_zero3_ws8_ga1_bs2_seq2048_rep0,ZeRO-3,87.54,86.51,85.32,87.45,1.03,87.41,3,8

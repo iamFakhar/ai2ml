@@ -1,0 +1,55 @@
+# ==============================================================================
+# matrix_ddp_decomp.yaml — Small DDP iteration-decomposition study
+# ==============================================================================
+# Single model (qwen3-4b), DDP only, across GPU counts, to decompose one
+# training iteration into computation (fwd/bwd/opt), communication (all-reduce),
+# and exposed synchronization — and to see communication appear as ws grows.
+#
+#   ws=1  -> strategy "single": zero collectives, pure-compute baseline / control
+#   ws=4  -> DDP: gradient all-reduce appears in the backward pass
+#   ws=8  -> DDP: same, comm scaled to 8 ranks
+#
+# All 9 runs (3 cells x 3 reps) are listed in validated_configs below so the
+# orchestrator adds --enable_profiler_trace to each. That runs the SECOND
+# (profiling) pass, which is the only source of total_nccl_comm_time_ms and the
+# per-collective all-reduce breakdown. PASS 1 timing stays clean (design §8/§10).
+#
+# Run against the isolated base so it never collides with the main outputs:
+#   python -m orchestration.launch_matrix \
+#       --matrix configs/matrix_ddp_decomp.yaml \
+#       --base   configs/base_ddp_decomp.yaml \
+#       --models configs/models.yaml
+# ==============================================================================
+
+groups:
+
+  # ws=1 pure-compute baseline (no distributed wrapper, no collectives).
+  ddp_decomp_baseline:
+    enabled: true
+    models: [qwen3-4b]
+    strategies: [single]
+    world_sizes: [1]
+    grad_accum_steps: [1]
+    reps: 3
+
+  # ws=4 and ws=8 DDP: gradient all-reduce in the backward pass.
+  ddp_decomp_scale:
+    enabled: true
+    models: [qwen3-4b]
+    strategies: [ddp]
+    world_sizes: [4, 8]
+    grad_accum_steps: [1]
+    reps: 3
+
+# Enable the profiler pass (comm breakdown) on every cell of this study,
+# including the ws=1 control (expected: ~0 collectives — a sanity check).
+validated_configs:
+  - qwen3-4b_single_ws1_ga1_bs2_seq2048_rep0
+  - qwen3-4b_single_ws1_ga1_bs2_seq2048_rep1
+  - qwen3-4b_single_ws1_ga1_bs2_seq2048_rep2
+  - qwen3-4b_ddp_ws4_ga1_bs2_seq2048_rep0
+  - qwen3-4b_ddp_ws4_ga1_bs2_seq2048_rep1
+  - qwen3-4b_ddp_ws4_ga1_bs2_seq2048_rep2
+  - qwen3-4b_ddp_ws8_ga1_bs2_seq2048_rep0
+  - qwen3-4b_ddp_ws8_ga1_bs2_seq2048_rep1
+  - qwen3-4b_ddp_ws8_ga1_bs2_seq2048_rep2

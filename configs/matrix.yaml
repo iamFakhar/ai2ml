@@ -1,0 +1,149 @@
+strategies:
+  - ddp
+  - fsdp_zero2      # SHARD_GRAD_OP
+  - fsdp_zero3      # FULL_SHARD
+
+groups:
+
+  # --- GROUP 1: Core matrix (RQ1 + RQ2) --- 4 x 3 x 3 x 3 = 108 runs
+  group1_core:
+    enabled: true
+    models: [qwen3-0.6b, qwen3-1.7b, qwen3-4b, qwen3-8b]
+    strategies: [ddp, fsdp_zero2, fsdp_zero3]
+    world_sizes: [2, 4, 8]
+    grad_accum_steps: [1]
+    reps: 1
+
+  # --- GROUP 2: Single-GPU baselines --- 4 x 3 = 12 runs
+  group2_baseline:
+    enabled: true
+    models: [qwen3-0.6b, qwen3-1.7b, qwen3-4b, qwen3-8b]
+    strategies: [single]          # no distributed wrapper
+    world_sizes: [1]
+    grad_accum_steps: [1]
+    reps: 1
+
+  # --- GROUP 3: Gradient accumulation sweep (RQ3) --- 3 x 3 x 3 = 27 runs
+  group3_gradaccum:
+    enabled: true
+    models: [qwen3-4b]
+    strategies: [ddp, fsdp_zero2, fsdp_zero3]
+    world_sizes: [8]
+    grad_accum_steps: [2, 4, 8]   # ga=1 already covered by group1
+    reps: 1
+
+  # --- GROUP 4: Characterization ablations (methodology support) --- ~8 runs
+  group4a_recompute_tax:
+    enabled: true
+    models: [qwen3-0.6b, qwen3-1.7b]   # fit without checkpointing
+    strategies: [ddp]
+    world_sizes: [8]
+    grad_accum_steps: [1]
+    reps: 1
+    overrides:
+      workload:
+        gradient_checkpointing: false
+
+  group4b_overlap_ablation:
+    # DISABLED: RQ2a's "two overlap methods" is already satisfied by the trace
+    # method + HTA (independent, agree within ~1pp). The suppress_overlap knob
+    # is also only meaningful for DDP (it serializes the bwd->opt seam, not
+    # FSDP's fwd all-gather / prefetch overlap). Flip to true to run it — the
+    # name-collision fix (RunSpec.name '_noovlp' suffix) now makes it distinct.
+    enabled: false
+    models: [qwen3-4b]
+    strategies: [ddp, fsdp_zero2, fsdp_zero3]
+    world_sizes: [8]
+    grad_accum_steps: [1]
+    reps: 1
+    overrides:
+      ablation:
+        suppress_overlap: true      # runner branches on this flag
+
+  # --- GROUP 5: Large models (RQ2/RQ4) --- where DDP OOMs and sharding is
+  # required. Expected: DDP OOM at all ws; ZeRO-2 feasible for 14B (params
+  # replicated ~30GB); ZeRO-3 is the enabler (32B fits ONLY under ZeRO-3 @ ws8).
+  # 0.6-8B already complete in the master CSV -> resume skips them; only these
+  # new cells run.
+  group5_large:
+    enabled: true
+    models: [qwen3-14b, qwen3-32b]
+    strategies: [ddp, fsdp_zero2, fsdp_zero3]
+    world_sizes: [2, 4, 8]
+    grad_accum_steps: [1]
+    reps: 1
+
+  # --- GROUP 6: Gradient-accumulation COMPLETION (RQ3, full grid) -----------
+  # Extends the RQ3 sweep from the single 4B/8-GPU cell (group3) to the FULL
+  # feasible grid: ga in {2,4,8} for every (model x strategy x world_size) cell
+  # that is OK at ga=1. Split into sub-groups so ONLY feasible cells are
+  # enumerated -> no OOM/crash cells are attempted (14B ZeRO-2 OOMs at ws2;
+  # 14B DDP + 32B DDP/ZeRO-2 OOM everywhere; 32B ZeRO-3 needs ws>=4).
+  # Resume skips ga=1 and the 9 already-done 4B/8-GPU GA runs (group3).
+  # New runs: 99 (0.6-8B) + 9 + 6 (14B) + 6 (32B) = 120.  Launch with:
+  #   --groups ga6_small ga6_14b_zero3 ga6_14b_zero2 ga6_32b_zero3
+  ga6_small:
+    enabled: true
+    models: [qwen3-0.6b, qwen3-1.7b, qwen3-4b, qwen3-8b]
+    strategies: [ddp, fsdp_zero2, fsdp_zero3]
+    world_sizes: [2, 4, 8]
+    grad_accum_steps: [2, 4, 8]        # ga=1 in group1; 4B/ws8 done in group3
+    reps: 1
+
+  ga6_14b_zero3:
+    enabled: true
+    models: [qwen3-14b]
+    strategies: [fsdp_zero3]           # only strategy feasible at ws2
+    world_sizes: [2, 4, 8]
+    grad_accum_steps: [2, 4, 8]
+    reps: 1
+
+  ga6_14b_zero2:
+    enabled: true
+    models: [qwen3-14b]
+    strategies: [fsdp_zero2]
+    world_sizes: [4, 8]                # 14B ZeRO-2 OOMs at ws2
+    grad_accum_steps: [2, 4, 8]
+    reps: 1
+
+  ga6_32b_zero3:
+    enabled: true
+    models: [qwen3-32b]
+    strategies: [fsdp_zero3]           # 32B fits ONLY under ZeRO-3, ws>=4
+    world_sizes: [4, 8]
+    grad_accum_steps: [2, 4, 8]
+    reps: 1
+
+  # --- GROUP 7: grad-accum comm MECHANISM, world-size axis (RQ3 deep) ---------
+  # Profile ga>1 on ZeRO-3 (most comm-intensive: 3x volume) across world sizes,
+  # to show how ga amortizes exposed comm as the collective grows. ws=8 is
+  # already profiled by group3_gradaccum (qwen3-4b), so this adds ws={2,4}.
+  # 1 model x 1 strategy x 2 ws x 3 ga = 6 runs. Run with --profile_all --force.
+  group7_ga_ws_scaling:
+    enabled: true
+    models: [qwen3-4b]
+    strategies: [fsdp_zero3]
+    world_sizes: [2, 4]
+    grad_accum_steps: [2, 4, 8]        # ga=1 anchor already profiled (group1)
+    reps: 1
+
+  # --- GROUP 8: grad-accum comm MECHANISM, model-size axis (RQ3 deep) ---------
+  # Fix ZeRO-3 / ws=8 (heaviest comm cell) and sweep model size. 4B/ws8 is the
+  # existing anchor (group3), so this adds 8B and 14B.
+  # 2 models x 1 strategy x 1 ws x 3 ga = 6 runs. Run with --profile_all --force.
+  group8_ga_model_scaling:
+    enabled: true
+    models: [qwen3-8b, qwen3-14b]
+    strategies: [fsdp_zero3]
+    world_sizes: [8]
+    grad_accum_steps: [2, 4, 8]        # ga=1 anchor already profiled (group1)
+    reps: 1
+
+# Configs flagged for Nsight validation + profiler traces (design doc §9).
+# NOTE: large models are NOT listed here on purpose — with --profile_all they
+# are still profiled, but their (huge) traces are discarded after overlap is
+# computed instead of kept (validated_configs implies --keep_traces).
+validated_configs:
+  - qwen3-4b_ddp_ws8_ga1_bs2_seq2048_rep0
+  - qwen3-4b_fsdp_zero2_ws8_ga1_bs2_seq2048_rep0
+  - qwen3-4b_fsdp_zero3_ws8_ga1_bs2_seq2048_rep0

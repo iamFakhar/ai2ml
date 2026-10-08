@@ -1,0 +1,38 @@
+{
+  "experiment_name": "qwen3-1.7b_fsdp_zero3_ws8_ga4_bs2_seq2048_rep0",
+  "world_size": 8,
+  "profiler_active_steps": 8,
+  "timestamp": "2026-07-26T11:49:25",
+  "comm_metrics": {
+    "nccl_allreduce_time_ms": 12.951273999999277,
+    "nccl_allgather_time_ms": 5091.829660000044,
+    "nccl_reducescatter_time_ms": 602.7522179999936,
+    "total_nccl_comm_time_ms": 5707.533152000037,
+    "nccl_allreduce_count": 8.0,
+    "nccl_allgather_count": 1824.0,
+    "nccl_reducescatter_count": 232.0,
+    "nccl_collective_count": 2064.0,
+    "cuda_kernel_count": 209728.0,
+    "mean_kernel_duration_us": 99.26948723108073,
+    "mean_collective_size_bytes": 0.0,
+    "measured_comm_volume_bytes": 0.0
+  },
+  "overlap_trace": {
+    "overlap_percentage_trace": 74.45387353507589,
+    "comm_busy_us": 3580873.060546875,
+    "comm_overlapped_us": 2666098.699951172,
+    "analyzed_steps": 5.0,
+    "overlap_ranks": [
+      0,
+      3,
+      7
+    ],
+    "overlap_per_rank": [
+      75.68738490258986,
+      72.92762593255767,
+      74.82412917962641
+    ],
+    "overlap_step_spread_pp": 36.46939450921024,
+    "overlap_stable": false
+  }
+}

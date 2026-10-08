@@ -1,0 +1,98 @@
+experiment:
+  # Filled by orchestrator; format:
+  #   {model}_{strategy}_ws{N}_ga{A}_bs{B}_seq{S}_rep{R}
+  name: null
+  output_root: "./outputs/ws_confirm"
+  seed: 42
+
+# ---- Locked workload -----------------------------------------------------
+workload:
+  per_device_batch_size: 2
+  seq_len: 2048
+  gradient_checkpointing: true          # use_reentrant=False enforced in code
+  attn_implementation: "sdpa"
+
+# ---- Locked precision ----------------------------------------------------
+precision:
+  mode: "bf16"                          # bf16 for both DDP and FSDP
+  # DDP  -> autocast(bf16) + bf16 weights   (uses_external_autocast=True)
+  # FSDP -> MixedPrecision policy, NO autocast (uses_external_autocast=False)
+
+# ---- Locked optimizer ----------------------------------------------------
+optimizer:
+  name: "adamw"
+  lr: 1.0e-5
+  betas: [0.9, 0.95]
+  eps: 1.0e-8
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  fused: true
+
+# ---- Measurement protocol (design doc §10) -------------------------------
+protocol:
+  num_steps: 120
+  warmup_steps_discard: 20
+  measured_steps: 100
+  residual_quality_gate_pct: 5.0        # RQ1 attribution target on validated cfgs
+
+# ---- Distributed ---------------------------------------------------------
+distributed:
+  backend: "nccl"
+  # DDP defaults (design doc §8)
+  ddp:
+    bucket_cap_mb: 25
+    gradient_as_bucket_view: true
+    find_unused_parameters: false
+    broadcast_buffers: false
+    static_graph: false
+  # FSDP defaults (design doc §8)
+  fsdp:
+    forward_prefetch: false
+    backward_prefetch: "BACKWARD_PRE"
+    limit_all_gathers: true
+    use_orig_params: true
+
+# ---- Instrumentation -----------------------------------------------------
+instrumentation:
+  log_every: 1
+  # Profiler traces are heavy: OFF by default, ON only for validated configs.
+  enable_profiler_trace: false
+  enable_tensorboard: true
+  profiler:
+    # --- schedule (boundary-protected; see notes/07) ---
+    skip_first: 5        # discard context/allocator/NCCL first-touch + autotune
+    wait: 1              # idle: let the pipeline settle before recording
+    warmup: 3            # traced but DISCARDED — FSDP/NCCL steady state
+    active: 8            # RECORD 8; analysis keeps only the first `analyze_steps`
+    repeat: 1            # one clean window
+    # --- boundary protection (approach A: record the guard, drop it) ---
+    analyze_steps: 5     # leading active steps used for the decomposition. The
+                         # remaining (active - analyze_steps) recorded steps are
+                         # the TRAILING GUARD: they give step `analyze_steps` real
+                         # following compute to overlap against, then are dropped
+                         # from analysis (avoids the last-step truncation artifact).
+    trailing_guard_steps: 2   # extra REAL loop steps run past the active window
+                              # so profiler flush/teardown never truncates step 8.
+    export_ranks: [0, 3, 7]   # exposed comm is per-rank & straggler-dependent:
+                              # export+analyze these ranks and average (not r0 only).
+    stability_tol_pp: 8.0     # flag if per-step overlap spread across the analyzed
+                              # steps exceeds this (non-steady-state guard).
+    # --- low-overhead settings (preserve REAL overlap) ---
+    record_shapes: false   # OFF: avoids CPU dispatch inflation -> preserves overlap
+    profile_memory: false  # OFF: allocator tracking is heavy under FSDP gather/free
+    with_stack: false      # OFF: not attributing to source lines here
+    with_flops: false      # OFF: MFU is computed analytically, not from profiler
+
+# ---- Hardware constants (for headroom / MFU / BW scoring) -----------------
+hardware:
+  gpu_mem_gb: 80
+  a100_peak_bf16_tflops: 312.0
+  measured_nvswitch_bw_gbps: 233.0      # fallback scalar; curve preferred
+  nccl_bw_curve_path: "./outputs/nccl_tests/bw_curves.json"
+
+# ---- Runtime env forced by orchestrator (documented here for provenance) --
+env:
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+  NCCL_DEBUG: "INFO"
+  NCCL_DEBUG_SUBSYS: "COLL,INIT"
+  TORCH_NCCL_ENABLE_TIMING: "1"
